@@ -1,0 +1,20 @@
+diff --git a/agent/retry_join.go b/agent/retry_join.go
+index eb010c0..8256634 100644
+--- a/agent/retry_join.go
++++ b/agent/retry_join.go
+@@ -11,6 +11,7 @@ import (
+ 	discoverhcp "github.com/hashicorp/consul/agent/hcp/discover"
+ 	discover "github.com/hashicorp/go-discover"
+ 	discoverk8s "github.com/hashicorp/go-discover/provider/k8s"
++	discoverdockerswarm "github.com/socheatsok78/go-discover-dockerswarm"
+ 	"github.com/hashicorp/go-hclog"
+ 
+ 	"github.com/hashicorp/consul/lib"
+@@ -117,6 +118,7 @@ func newDiscover() (*discover.Discover, error) {
+ 	}
+ 	providers["k8s"] = &discoverk8s.Provider{}
+ 	providers["hcp"] = &discoverhcp.Provider{}
++	providers["dockerswarm"] = &discoverdockerswarm.Provider{}
+ 
+ 	return discover.New(
+ 		discover.WithUserAgent(lib.UserAgent()),
