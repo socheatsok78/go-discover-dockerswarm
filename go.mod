@@ -2,7 +2,7 @@ module github.com/socheatsok78/go-discover-dockerswarm
 
 go 1.23.5
 
-require github.com/docker/docker v28.0.1+incompatible
+require github.com/docker/docker v27.4.1+incompatible
 
 require (
 	github.com/Microsoft/go-winio v0.4.14 // indirect
