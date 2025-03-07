@@ -1,0 +1,20 @@
+diff --git a/vault/raft.go b/vault/raft.go
+index 5246b5e..6aa8856 100644
+--- a/vault/raft.go
++++ b/vault/raft.go
+@@ -29,6 +29,7 @@ import (
+ 	"github.com/openbao/openbao/sdk/v2/helper/jsonutil"
+ 	"github.com/openbao/openbao/sdk/v2/logical"
+ 	"github.com/openbao/openbao/vault/seal"
++	discoverdockerswarm "github.com/socheatsok78/go-discover-dockerswarm"
+ 	"golang.org/x/net/http2"
+ )
+ 
+@@ -1306,6 +1307,7 @@ func newDiscover() (*discover.Discover, error) {
+ 	}
+ 
+ 	providers["k8s"] = &discoverk8s.Provider{}
++	providers["dockerswarm"] = &discoverdockerswarm.Provider{}
+ 
+ 	return discover.New(
+ 		discover.WithProviders(providers),
