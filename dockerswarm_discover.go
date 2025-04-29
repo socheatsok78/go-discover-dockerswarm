@@ -5,7 +5,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
+	"net/url"
 	"slices"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -19,6 +22,8 @@ func (p *Provider) Help() string {
 	return `Docker Swarm:
 
     provider:         "dockerswarm"
+    host:             "tcp://host:port" or "unix:///path/to/socket" (defaults to "unix:///var/run/docker.sock").
+
     type:             "node"
     role:             "manager", "worker" or "all" (defaults to "all").
 
@@ -35,10 +40,38 @@ func (p *Provider) Addrs(args map[string]string, l *log.Logger) ([]string, error
 		return nil, fmt.Errorf("discover-dockerswarm: invalid provider " + args["provider"])
 	}
 
-	cli, err := client.NewClientWithOpts(client.WithAPIVersionNegotiation())
+	host := args["host"]
+	if host == "" {
+		host = "unix:///var/run/docker.sock"
+	}
+
+	hostURL, err := url.Parse(host)
+	if err != nil {
+		return nil, fmt.Errorf("discover-dockerswarm: invalid host URL %q: %s", host, err)
+	}
+
+	opts := []client.Opt{
+		client.WithHost(host),
+		client.WithAPIVersionNegotiation(),
+	}
+
+	// There are other protocols than HTTP supported by the Docker daemon, like
+	// unix, which are not supported by the HTTP client. Passing HTTP client
+	// options to the Docker client makes those non-HTTP requests fail.
+	if hostURL.Scheme == "http" || hostURL.Scheme == "https" {
+		opts = append(opts,
+			client.WithHTTPClient(&http.Client{
+				Timeout: time.Duration(30) * time.Second,
+			}),
+			client.WithScheme(hostURL.Scheme),
+		)
+	}
+
+	cli, err := client.NewClientWithOpts(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("discover-dockerswarm: %s", err)
 	}
+	defer cli.Close()
 
 	discoverType := args["type"]
 
