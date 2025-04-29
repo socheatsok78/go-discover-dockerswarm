@@ -20,7 +20,7 @@ func (p *Provider) Help() string {
 
     provider:         "dockerswarm"
     type:             "node"
-    role:             "manager", "worker" or "all" (defaults to "allz").
+    role:             "manager", "worker" or "all" (defaults to "all").
 
     type:             "service"
     namespace:        Namespace to search for services (defaults to "default").
