@@ -19,6 +19,10 @@ func (p *Provider) Help() string {
 	return `Docker Swarm:
 
     provider:         "dockerswarm"
+    type:             "node"
+    role:             "manager", "worker" or "all" (defaults to "allz").
+
+    type:             "service"
     namespace:        Namespace to search for services (defaults to "default").
     service:          Service name to search for.
     network:          Network selector value to filter services (defaults to "{{namespace}}_default").
@@ -31,12 +35,30 @@ func (p *Provider) Addrs(args map[string]string, l *log.Logger) ([]string, error
 		return nil, fmt.Errorf("discover-dockerswarm: invalid provider " + args["provider"])
 	}
 
-	ctx := context.Background()
-
 	cli, err := client.NewClientWithOpts(client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, fmt.Errorf("discover-dockerswarm: %s", err)
 	}
+
+	discoverType := args["type"]
+
+	switch discoverType {
+	case "node":
+		return NodeAddrs(cli, args, l)
+	case "service":
+		return ServiceAddrs(cli, args, l)
+	default:
+		return nil, fmt.Errorf("discover-dockerswarm: invalid type %q", discoverType)
+	}
+}
+
+func NodeAddrs(cli *client.Client, args map[string]string, l *log.Logger) ([]string, error) {
+	// ctx := context.Background()
+	return nil, fmt.Errorf("discover-dockerswarm: node discovery not implemented")
+}
+
+func ServiceAddrs(cli *client.Client, args map[string]string, l *log.Logger) ([]string, error) {
+	ctx := context.Background()
 
 	namespace := args["namespace"]
 	if namespace == "" {
