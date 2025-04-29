@@ -67,6 +67,7 @@ func TaskAddrs(tasks []swarm.Task, args map[string]string, l *log.Logger) ([]str
 
 	namespace := args["namespace"]
 	if namespace == "" {
+		l.Printf("[DEBUG] discover-dockerswarm: using default namespace")
 		namespace = "default"
 	}
 
@@ -78,6 +79,7 @@ func TaskAddrs(tasks []swarm.Task, args map[string]string, l *log.Logger) ([]str
 
 	networkSelector := args["network"]
 	if networkSelector == "" {
+		l.Printf("[DEBUG] discover-dockerswarm: using default network")
 		networkSelector = "default"
 	}
 	networkSelector = fmt.Sprintf("%s_%s", namespace, networkSelector)
