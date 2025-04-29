@@ -25,7 +25,7 @@ func (p *Provider) Help() string {
     host:             "tcp://host:port" or "unix:///path/to/socket" (defaults to "unix:///var/run/docker.sock").
 
     type:             "node"
-    role:             "manager", "worker" or "all" (defaults to "all").
+    role:             "manager" or "worker" (defaults to "").
 
     type:             "service"
     namespace:        Namespace to search for services (defaults to "default").
@@ -86,8 +86,37 @@ func (p *Provider) Addrs(args map[string]string, l *log.Logger) ([]string, error
 }
 
 func NodeAddrs(cli *client.Client, args map[string]string, l *log.Logger) ([]string, error) {
-	// ctx := context.Background()
-	return nil, fmt.Errorf("discover-dockerswarm: node discovery not implemented")
+	ctx := context.Background()
+
+	filters := filters.NewArgs()
+
+	role := args["role"]
+	if role != "" {
+		filters.Add("role", role)
+	}
+
+	nodes, err := cli.NodeList(ctx, types.NodeListOptions{
+		Filters: filters,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("discover-dockerswarm: %s", err)
+	}
+
+	var addrs []string
+
+	for _, node := range nodes {
+		if node.Status.State != swarm.NodeStateReady {
+			l.Printf("[DEBUG] discover-dockerswarm: ignoring node %q, not ready state", node.Description.Hostname)
+			continue
+		}
+		if node.Spec.Availability != swarm.NodeAvailabilityActive {
+			l.Printf("[DEBUG] discover-dockerswarm: ignoring node %q, not active availability", node.Description.Hostname)
+			continue
+		}
+		addrs = append(addrs, node.Status.Addr)
+	}
+
+	return addrs, nil
 }
 
 func ServiceAddrs(cli *client.Client, args map[string]string, l *log.Logger) ([]string, error) {
