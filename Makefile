@@ -1,3 +1,6 @@
-it:
+tidy:
 	go mod tidy
-	go mod vendor -o vendor
+build:
+	@$(MAKE) -C cmd build
+clean:
+	@$(MAKE) -C cmd clean
