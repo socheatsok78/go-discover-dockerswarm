@@ -5,7 +5,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
+	"net/url"
 	"slices"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -19,8 +22,14 @@ func (p *Provider) Help() string {
 	return `Docker Swarm:
 
     provider:         "dockerswarm"
+    host:             "tcp://host:port" or "unix:///path/to/socket" (defaults to "unix:///var/run/docker.sock").
+
+    type:             "node"
+    role:             "manager" or "worker" (defaults to "").
+
+    type:             "service"
     namespace:        Namespace to search for services (defaults to "default").
-    service:          Service name to search for.
+    name:             Service name to search for.
     network:          Network selector value to filter services (defaults to "{{namespace}}_default").
     host_network:     "true" if service host IP and ports should be used.
 `
@@ -31,19 +40,94 @@ func (p *Provider) Addrs(args map[string]string, l *log.Logger) ([]string, error
 		return nil, fmt.Errorf("discover-dockerswarm: invalid provider " + args["provider"])
 	}
 
-	ctx := context.Background()
+	host := args["host"]
+	if host == "" {
+		host = "unix:///var/run/docker.sock"
+	}
 
-	cli, err := client.NewClientWithOpts(client.WithAPIVersionNegotiation())
+	hostURL, err := url.Parse(host)
+	if err != nil {
+		return nil, fmt.Errorf("discover-dockerswarm: invalid host URL %q: %s", host, err)
+	}
+
+	opts := []client.Opt{
+		client.WithHost(host),
+		client.WithAPIVersionNegotiation(),
+	}
+
+	// There are other protocols than HTTP supported by the Docker daemon, like
+	// unix, which are not supported by the HTTP client. Passing HTTP client
+	// options to the Docker client makes those non-HTTP requests fail.
+	if hostURL.Scheme == "http" || hostURL.Scheme == "https" {
+		opts = append(opts,
+			client.WithHTTPClient(&http.Client{
+				Timeout: time.Duration(30) * time.Second,
+			}),
+			client.WithScheme(hostURL.Scheme),
+		)
+	}
+
+	cli, err := client.NewClientWithOpts(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("discover-dockerswarm: %s", err)
 	}
+	defer cli.Close()
+
+	discoverType := args["type"]
+
+	switch discoverType {
+	case "node":
+		return NodeAddrs(cli, args, l)
+	case "service":
+		return ServiceAddrs(cli, args, l)
+	default:
+		return nil, fmt.Errorf("discover-dockerswarm: invalid type %q", discoverType)
+	}
+}
+
+func NodeAddrs(cli *client.Client, args map[string]string, l *log.Logger) ([]string, error) {
+	ctx := context.Background()
+
+	filters := filters.NewArgs()
+
+	role := args["role"]
+	if role != "" {
+		filters.Add("role", role)
+	}
+
+	nodes, err := cli.NodeList(ctx, types.NodeListOptions{
+		Filters: filters,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("discover-dockerswarm: %s", err)
+	}
+
+	var addrs []string
+
+	for _, node := range nodes {
+		if node.Status.State != swarm.NodeStateReady {
+			l.Printf("[DEBUG] discover-dockerswarm: ignoring node %q, not ready state", node.Description.Hostname)
+			continue
+		}
+		if node.Spec.Availability != swarm.NodeAvailabilityActive {
+			l.Printf("[DEBUG] discover-dockerswarm: ignoring node %q, not active availability", node.Description.Hostname)
+			continue
+		}
+		addrs = append(addrs, node.Status.Addr)
+	}
+
+	return addrs, nil
+}
+
+func ServiceAddrs(cli *client.Client, args map[string]string, l *log.Logger) ([]string, error) {
+	ctx := context.Background()
 
 	namespace := args["namespace"]
 	if namespace == "" {
 		namespace = "default"
 	}
 
-	service := args["service"]
+	service := args["name"]
 	if service == "" {
 		return nil, fmt.Errorf("discover-dockerswarm: service name is required")
 	}
@@ -71,7 +155,7 @@ func TaskAddrs(tasks []swarm.Task, args map[string]string, l *log.Logger) ([]str
 		namespace = "default"
 	}
 
-	service := args["service"]
+	service := args["name"]
 	if service == "" {
 		return nil, fmt.Errorf("discover-dockerswarm: service name is required")
 	}
