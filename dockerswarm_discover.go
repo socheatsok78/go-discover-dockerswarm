@@ -29,7 +29,7 @@ func (p *Provider) Help() string {
 
     type:             "service"
     namespace:        Namespace to search for services (defaults to "default").
-    service:          Service name to search for.
+    name:             Service name to search for.
     network:          Network selector value to filter services (defaults to "{{namespace}}_default").
     host_network:     "true" if service host IP and ports should be used.
 `
@@ -127,7 +127,7 @@ func ServiceAddrs(cli *client.Client, args map[string]string, l *log.Logger) ([]
 		namespace = "default"
 	}
 
-	service := args["service"]
+	service := args["name"]
 	if service == "" {
 		return nil, fmt.Errorf("discover-dockerswarm: service name is required")
 	}
@@ -155,7 +155,7 @@ func TaskAddrs(tasks []swarm.Task, args map[string]string, l *log.Logger) ([]str
 		namespace = "default"
 	}
 
-	service := args["service"]
+	service := args["name"]
 	if service == "" {
 		return nil, fmt.Errorf("discover-dockerswarm: service name is required")
 	}
