@@ -20,9 +20,9 @@ func main() {
 	flag.Parse()
 
 	providers := make(map[string]discover.Provider)
-	for k, v := range discover.Providers {
-		providers[k] = v
-	}
+	// for k, v := range discover.Providers {
+	// 	providers[k] = v
+	// }
 
 	providers["dockerswarm"] = &discoverdockerswarm.Provider{}
 
